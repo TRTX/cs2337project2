@@ -1,0 +1,278 @@
+//this is the entire code that was submitted, 100/100.
+#include <iostream>
+#include <string>
+#include <cmath>
+using namespace std;
+
+class AbstractTerm{
+   public:
+   virtual AbstractTerm* derivative() = 0;
+   virtual double evaluate(double n) = 0;
+   virtual string toString() = 0;
+   virtual int myType()= 0;
+   virtual int getCoeff() = 0;
+};
+
+class ConstantTerm : public AbstractTerm{
+   public:
+   int a;
+   ConstantTerm(){
+      a=0;
+   }
+   ConstantTerm(int n){
+      a=n; 
+   }
+   int getCoeff(){ return a;}
+   AbstractTerm* derivative(){ 
+      ConstantTerm* deriv = new ConstantTerm(0);
+      return deriv; 
+   }
+   double evaluate(double x){
+      return a+0*x; 
+   }
+   string toString(){
+      if(a>=0)
+         return "+ " + to_string(a) + " ";
+      else
+         return "- " + to_string(a).substr(1) + " ";
+   }
+  int myType(){
+    return 0;
+    }
+};
+
+class LinearTerm : public ConstantTerm{
+   public:
+   int a;
+   LinearTerm(){
+      a=1;
+   }
+   LinearTerm(int n){
+      a=n; 
+   }
+   int getCoeff(){ return a;}
+   AbstractTerm* derivative(){ 
+      ConstantTerm* deriv = new ConstantTerm(a);
+      return deriv; 
+   }
+   double evaluate(double x){
+      return a*x; 
+   }
+   string toString(){ 
+      if(a >= 0)
+         return "+ " + to_string(a) + "x" + " ";
+      else
+         return "- " + to_string(a).substr(1) + "x" + " ";
+   }
+  int myType(){
+    return 1;
+    }
+};
+
+class PolynomialTerm : public LinearTerm{
+   public:
+   int a;
+   int b;
+   PolynomialTerm(int coefficient, int power){
+      a = coefficient;
+      b = power;
+   }
+   int getCoeff(){ return a;}
+   AbstractTerm* derivative(){ 
+      if(b==2){
+         LinearTerm* deriv = new LinearTerm(a*b);
+         return deriv;
+      }
+      else{
+         PolynomialTerm* deriv = new PolynomialTerm(a*b,b-1);
+         return deriv;
+      }
+   }
+   double evaluate(double x){
+      return a*pow(x,b); 
+   }
+   string toString(){ 
+      if(a >= 0)
+         return "+ " + to_string(a) + "x^" + to_string(b) + " ";
+      else
+         return "- " + to_string(a).substr(1) + "x^" + to_string(b) + " ";
+   }
+  int myType(){
+    return 2;
+    }
+};
+enum TrigType{ SINE, COSINE };
+
+class TrigTerm : public LinearTerm{
+   public:
+   int a;
+   TrigType t;
+   TrigTerm(int coefficient, TrigType fun){
+      a = coefficient;
+      t = fun;
+   }
+   int getCoeff(){ return a;}
+   AbstractTerm* derivative(){
+      TrigType swapType;
+      int a2;
+      if(t == SINE){
+         swapType = COSINE;
+         a2 = a;
+      }
+      else{
+         swapType = SINE;
+         a2 = -1*a;
+      }
+      
+      TrigTerm* deriv = new TrigTerm(a2, swapType);
+      return deriv; 
+   }
+   double evaluate(double xDeg){
+      double xRad = xDeg * M_PI / 180;
+      if(t == SINE)
+         return a * sin(xRad);
+      else
+         return a * cos(xRad);
+   }
+   string toString(){
+      if(a>=0){
+         if(t == SINE)
+            return "+ " + to_string(a) + "sin(x)" + " ";
+         else
+            return "+ " + to_string(a) + "cos(x)" + " ";
+      }
+      else{
+         if(t == SINE)
+            return "- " + to_string(a).substr(1) + "sin(x)" + " ";
+         else
+            return "- " + to_string(a).substr(1) + "cos(x)" + " ";
+      }
+   }
+int myType(){
+  return 3;
+  }
+};
+
+template <typename T>
+class ProjNode{
+   ProjNode<T>* next;
+   T data;
+   public:
+   ProjNode(T t){
+      next = nullptr;
+      data = t;
+   }
+   ProjNode* getNext(){ return next; }
+   void setNext(ProjNode* newNext){ next = newNext; }
+   T getData(){ return data; }
+};
+
+template<typename T>
+class ProjLinkedList{
+  public:
+  int length = 0;
+  ProjNode<T>* head;
+  ProjLinkedList(){
+    head = nullptr;
+  }
+  void add(T t){    
+    ProjNode<T>* newNode = new ProjNode<T>(t);
+    newNode->setNext(head);
+      head = newNode;
+    length++;
+  }
+  T getAt(int n){
+    ProjNode<T>* currNode = head;
+    for(int i=0 ; i<n ; i++){
+      currNode = currNode->getNext();
+    }
+    return currNode->getData();
+  }
+  string toString(){
+    string tot = "";
+    for(int i=0 ; i<length ; i++){
+      tot += getAt(i)->toString();
+    }
+    return tot;
+  }
+};
+
+class Expression{
+  public:
+  ProjLinkedList<AbstractTerm*>* terms;
+  Expression(){
+    terms = new ProjLinkedList<AbstractTerm*>();
+  }
+  Expression* operator+= (AbstractTerm* t){
+    terms->add(t);
+    return this;
+  }
+  Expression* getDerivative(){
+    AbstractTerm* currTerm;
+    AbstractTerm* currDeriv;
+    Expression* deriv = new Expression();
+    for(int i=0 ; i<terms->length ; i++){
+      currTerm = terms->getAt(i);
+      currDeriv = currTerm->derivative();
+      cout << currDeriv->getCoeff() << endl;
+      if(!(currDeriv->myType() == 0 && currDeriv->getCoeff() == 0))
+        *deriv += currDeriv;
+    }
+    return deriv;
+  }
+  double getEvaluation(double x){
+    double sum = 0;
+    AbstractTerm* currTerm;
+    for(int i=0 ; i<terms->length ; i++){
+      currTerm = terms->getAt(i);
+      sum += currTerm->evaluate(x);
+    }
+    return sum;
+  }
+  string toString(){
+    string tot = "";
+    ProjLinkedList<AbstractTerm*>* constTerms = new ProjLinkedList<AbstractTerm*>;
+    ProjLinkedList<AbstractTerm*>* linearTerms = new ProjLinkedList<AbstractTerm*>;
+    ProjLinkedList<AbstractTerm*>* polynomialTerms = new ProjLinkedList<AbstractTerm*>;
+    ProjLinkedList<AbstractTerm*>* trigTerms = new ProjLinkedList<AbstractTerm*>;
+    AbstractTerm* currTerm;
+    for(int i=0 ; i<terms->length ; i++){
+      currTerm = terms->getAt(i);
+      switch(currTerm->myType()){
+        case 0:
+          constTerms->add(currTerm); 
+          break;
+        case 1:
+          linearTerms->add(currTerm); 
+          break;
+        case 2:
+          polynomialTerms->add(currTerm); 
+          break;
+        case 3:
+          trigTerms->add(currTerm); 
+          break;
+      }
+    }
+    tot += polynomialTerms->toString();
+    tot += linearTerms->toString();
+    tot += constTerms->toString();
+    tot += trigTerms->toString();
+    return tot;
+  }
+};
+
+
+int main(){
+   AbstractTerm* t1 = new LinearTerm(2);
+   AbstractTerm* t2 = new PolynomialTerm(5,3);
+   AbstractTerm* t3 = new TrigTerm(4, TrigType::SINE);
+   Expression* e1 = new Expression();
+   (*e1) += t1;
+   (*e1) += t2;
+   (*e1) += t3;
+   Expression* e2 = e1->getDerivative();
+   cout << e1->toString() << endl;
+   cout << e2->toString() << endl;
+   
+   return 0;
+}
